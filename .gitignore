@@ -1,0 +1,13 @@
+# Compiler output
+cache/
+out/
+
+# Broadcast logs
+broadcast/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
