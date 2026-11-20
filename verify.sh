@@ -1,11 +1,11 @@
 #!/bin/bash
-# Verify a deployed contract on Blockscout (Epix Testnet)
+# Verify a deployed contract on Blockscout (Epix mainnet by default; set EXPLORER_URL for testnet)
 #
 # Usage:
 #   ./verify.sh <contract_address> <contract_name>
 #
 # Examples:
-#   ./verify.sh 0xD0793a2a11Fa3600Ec941115937FB8E259cfdbf1 VRFCoinFlip
+#   ./verify.sh 0x9dA2082E0486A642864a7065dbcb0A9fca1E2B07 VRFCoinFlip
 #   ./verify.sh 0x1234...abcd MyContract
 #
 # Requires: forge, curl, jq (optional, for pretty output)
@@ -27,7 +27,7 @@ CONTRACT_NAME="${2:-}"
 
 if [[ -z "$CONTRACT_ADDR" || -z "$CONTRACT_NAME" ]]; then
     echo "Usage: $0 <contract_address> <contract_name>"
-    echo "Example: $0 0xD0793a2a11Fa3600Ec941115937FB8E259cfdbf1 VRFCoinFlip"
+    echo "Example: $0 0x9dA2082E0486A642864a7065dbcb0A9fca1E2B07 VRFCoinFlip"
     exit 1
 fi
 

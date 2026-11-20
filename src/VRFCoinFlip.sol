@@ -14,6 +14,14 @@ import {IVRF_CONTRACT} from "./IVRF.sol";
  *
  * The beacon is produced by the chain's VRF module at the end of each block,
  * so nobody can know the outcome when committing.
+ *
+ * Expiry:
+ *   The chain only keeps beacons for a lookback window (the x/vrf
+ *   `lookback_blocks` param, 256 by default). A game that is not revealed
+ *   within that window can never settle, so once the reveal block's beacon is
+ *   gone anyone may call expire(player). An expired game is recorded as a
+ *   loss (result 0), so a player cannot escape a known losing round by
+ *   waiting it out.
  */
 contract VRFCoinFlip {
     struct Game {
@@ -34,6 +42,11 @@ contract VRFCoinFlip {
         uint64 revealBlock;
     }
 
+    /// @notice Blocks the chain keeps a beacon for (x/vrf `lookback_blocks`, default 256).
+    /// @dev expire() also requires the beacon to be gone, so a larger on-chain
+    /// window only delays expiry, it never cuts a revealable game short.
+    uint64 public constant BEACON_LOOKBACK = 256;
+
     event GameCommitted(
         address indexed player,
         uint256 indexed gameId,
@@ -49,6 +62,12 @@ contract VRFCoinFlip {
         uint64 result,
         bool won,
         bytes32 beacon
+    );
+
+    event GameExpired(
+        address indexed player,
+        uint256 indexed gameId,
+        uint64 revealBlock
     );
 
     /// @dev Active game per player.
@@ -121,6 +140,30 @@ contract VRFCoinFlip {
         delete _games[player];
 
         emit GameRevealed(player, game.gameId, result, won, beacon);
+    }
+
+    /// @notice Clear a game whose reveal beacon has been pruned by the chain.
+    /// @dev Callable by anyone, like reveal(). The game is recorded as a loss
+    /// with result 0 (real results are 1-100) and a zero beacon.
+    /// @param player The player whose game to expire.
+    function expire(address player) external {
+        Game memory game = _games[player];
+        require(game.active, "no active game");
+        require(block.number > uint256(game.revealBlock) + BEACON_LOOKBACK, "not expired");
+        require(IVRF_CONTRACT.getBeacon(game.revealBlock) == bytes32(0), "beacon still available");
+
+        _results[player][game.gameId] = GameResult({
+            guessOver: game.guessOver,
+            threshold: game.threshold,
+            result: 0,
+            won: false,
+            beacon: bytes32(0),
+            revealBlock: game.revealBlock
+        });
+
+        delete _games[player];
+
+        emit GameExpired(player, game.gameId, game.revealBlock);
     }
 
     /// @notice Get a player's active game.
